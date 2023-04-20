@@ -14,13 +14,9 @@ def create_task_definition(execution_role, memory, cpu, deployment_type, task_ro
     return task_definition
 
 
-def create_container_definition(env_vars, environment, project_name, container_name, ecr_path, command, cpu=256,
-                                memory=512, ports=None, disable_logs=False):
-    container_definition_name = f"{project_name}"
-    log_path = f"/ecs/{environment}-{project_name}-{container_name}"
-
+def create_container_definition(env_vars, environment, container_name, ecr_path, command=None, cpu=256,
+                                memory=512, ports=None, logs_group=None):
     port_mappings = []
-
     if ports:
         for p in ports:
             host_port = int(p.split(':')[0])
@@ -34,23 +30,24 @@ def create_container_definition(env_vars, environment, project_name, container_n
 
     container_definition = {
         "environment": env_vars,
-        "name": container_definition_name,
+        "name": container_name,
         "mountPoints": [],
         "image": ecr_path,
         "cpu": cpu,
         "memory": memory,
         "portMappings": port_mappings,
-        "command": parse_command(command),
         "essential": True,
         "volumesFrom": []
     }
+    if command:
+        container_definition["command"] = parse_command(command)
 
-    if not disable_logs:
+    if logs_group:
         container_definition["logConfiguration"] = {
             "logDriver": "awslogs",
             "options": {
                 "awslogs-stream-prefix": "ecs",
-                "awslogs-group": log_path,
+                "awslogs-group": f"/ecs/{environment}-{logs_group}",
                 "awslogs-region": "eu-west-1"
             }
         }

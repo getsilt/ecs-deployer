@@ -1,7 +1,5 @@
 # ECS Deployer
 
-![doge](./doge.webp)
-
 ## What it does?
 
 - Grab environmental variables from Vault

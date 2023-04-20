@@ -1,5 +1,6 @@
 import logging
 import time
+
 import yaml
 from yaml import Loader
 
@@ -26,24 +27,36 @@ def register_task_definitions(procfile_path, execution_role, environment, projec
 
     revisions = {}
     for service_name, values in procfile.items():
+        logging.info(f"SERVICE_NAME {service_name}")
         service_task_definition = create_task_definition(execution_role=execution_role,
                                                          cpu=values['cpu'],
                                                          memory=values['memory'],
                                                          task_role=task_role,
                                                          deployment_type=values.get('deployment-type', 'FARGATE'))
+        if values.get('containers') is not None:
+            for container_name, container in values.get('containers').items():
+                container_definition = create_container_definition(env_vars,
+                                                                   environment,
+                                                                   ecr_path=container.get('image', ecr_path),
+                                                                   container_name=container.get('container-name'),
+                                                                   command=container.get('command'),
+                                                                   cpu=container.get('cpu'),
+                                                                   memory=container.get('memory'),
+                                                                   ports=container.get('ports'),
+                                                                   logs_group=container.get('logs-group'))
+                service_task_definition['containerDefinitions'].append(container_definition)
+        else:
+            container_definition = create_container_definition(env_vars,
+                                                               environment,
+                                                               ecr_path=ecr_path,
+                                                               container_name=service_name,
+                                                               command=values.get('command'),
+                                                               cpu=values['cpu'],
+                                                               memory=values['memory'],
+                                                               ports=values.get('ports'),
+                                                               logs_group=values.get('logs-group'))
 
-        container_definition = create_container_definition(env_vars,
-                                                           environment,
-                                                           project_name,
-                                                           ecr_path=ecr_path,
-                                                           container_name=service_name,
-                                                           command=values['command'],
-                                                           cpu=values['cpu'],
-                                                           memory=values['memory'],
-                                                           ports=values.get('ports'),
-                                                           disable_logs=values.get('disable-logs', False))
-
-        service_task_definition['containerDefinitions'].append(container_definition)
+            service_task_definition['containerDefinitions'].append(container_definition)
 
         family = "{}-{}-{}".format(environment,
                                    project_name,
